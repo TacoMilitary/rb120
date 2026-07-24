@@ -1,18 +1,10 @@
+require 'pry-byebug'
+
 HUMAN_IDENTITY = :human
 COMPUTER_IDENTITY = :computer
-WIN_IDENTITY = :win
-LOSE_IDENTITY = :lose
-TIE_IDENTITY = :equal
 
 COMPUTER_DISPLAY_NAME = 'Computer'.freeze
-DEFAULT_HUMAN_DISPLAY_NAME = 'Human'
-
-MOVES = %w(rock paper scissors).map!(&:freeze).freeze
-WINNING_MOVES = {
-                  'rock' => 'scissors',
-                  'paper' => 'rock',
-                  'scissors' => 'paper'
-                }.freeze
+DEFAULT_HUMAN_DISPLAY_NAME = 'Human'.freeze
 
 class Player
   attr_reader :move
@@ -21,11 +13,12 @@ class Player
   def initialize(player_type = HUMAN_IDENTITY)
     @player_type = player_type
     @move = nil
-    @name = human? ? DEFAULT_HUMAN_DISPLAY_NAME : COMPUTER_DISPLAY_NAME
+    @name = default_name
   end
 
   def choose
-    human? ? prompt_move : random_move
+    chosen_move = human? ? prompt_move : Move.random_move
+    @move = chosen_move
   end
 
   def human?
@@ -39,44 +32,76 @@ class Player
     self.name = format_name(gets.chomp)
   end
 
-  def compare_move(other_player)
-    if WINNING_MOVES[move] == other_player.move
-      WIN_IDENTITY
-    elsif WINNING_MOVES[other_player.move] == move
-      LOSE_IDENTITY
-    else
-      TIE_IDENTITY
-    end
-  end
-
   private
 
   def format_name(string)
     string.split.map(&:capitalize).join ' '
   end
 
-  def random_move
-    @move = MOVES.sample
-  end
-
   def prompt_move
     loop do
       puts 'Please choose rock, paper, or scissors:'
-      input = gets.chomp.strip
-
-      if MOVES.include? input
-        @move = input
-        break
-      end
+      found_move = Move.find_move(gets.chomp.strip)
+      return found_move if found_move
 
       puts 'Sorry. Invalid choice!'
     end
   end
+
+  def default_name
+    human? ? DEFAULT_HUMAN_DISPLAY_NAME : COMPUTER_DISPLAY_NAME
+  end
+
+  def to_s
+    name
+  end
+end
+
+class Move
+  VALID_MOVES = %w(rock paper scissors).map(&:freeze).freeze
+  WINNING_MOVES = {
+                    'rock' => 'scissors',
+                    'paper' => 'rock',
+                    'scissors' => 'paper'
+                  }.freeze
+
+  def self.random_move
+    Move.new VALID_MOVES.sample
+  end
+
+  def self.find_move(string)
+    return nil if string.empty?
+
+    found_choice = VALID_MOVES.find do |choice| 
+      choice.start_with?(string) || string.start_with?(choice)
+    end
+
+    Move.new(found_choice) if found_choice
+  end
+
+  def initialize(rps_choice)
+    @rps_choice = rps_choice
+  end
+
+  def to_s
+    rps_choice.upcase
+  end
+
+  def beats?(other_move)
+    WINNING_MOVES[rps_choice] == other_move.rps_choice
+  end
+
+  def ties?(other_move)
+    rps_choice == other_move.rps_choice
+  end
+
+  protected
+
+  attr_reader :rps_choice
 end
 
 class RPSGame
   TIE_MESSAGE = "It's a tie!"
-  LOSE_MESSAGE = 'Computer won!'
 
   def initialize
     @human = Player.new
@@ -90,7 +115,7 @@ class RPSGame
     loop do
       human.choose
       computer.choose
-      display_winner
+      display_match_results
       break unless play_again?
     end
 
@@ -102,25 +127,32 @@ class RPSGame
   attr_reader :human, :computer
 
   def display_welcome_message
-    puts "Hello #{human.name}! Welcome to Rock, Paper, Scissors!"
+    puts "Hello #{human}! Welcome to Rock, Paper, Scissors!"
   end
 
   def display_goodbye_message
     puts 'Goodbye! See you next time!'
   end
 
-  # rubocop:disable Metrics/AbcSize
-  def display_winner
-    puts "#{human.name} chose #{human.move.upcase}."
-    puts "The Computer chose #{computer.move.upcase}."
+  def display_match_results
+    human_move = human.move
+    cpu_move = computer.move
 
-    case human.compare_move(computer)
-    when WIN_IDENTITY then puts "#{human.name} won!"
-    when LOSE_IDENTITY then puts LOSE_MESSAGE
-    else puts TIE_MESSAGE
+    puts "#{human} chose #{human_move}."
+    puts "The #{computer} chose #{cpu_move}."
+
+    puts winner_text(human_move, cpu_move)
+  end
+
+  def winner_text(human_move, cpu_move)
+    if human_move.beats?(cpu_move)
+      "#{human} won!"
+    elsif cpu_move.beats?(human_move)
+      "#{computer} won!"
+    else
+      TIE_MESSAGE
     end
   end
-  # rubocop:enable Metrics/AbcSize
 
   def play_again?
     loop do
