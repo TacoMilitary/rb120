@@ -56,7 +56,7 @@ class Player
 
   def prompt_move
     loop do
-      choice = generic_prompt('Please choose rock, paper, or scissors:')
+      choice = generic_prompt('Please choose rock, paper, scissors, lizard, or spock:')
       found_move = Move.find_move(choice)
       return found_move if found_move
 
@@ -74,12 +74,14 @@ class Player
 end
 
 class Move
-  VALID_MOVES = %w(rock paper scissors).map(&:freeze).freeze
+  VALID_MOVES = %w(rock paper scissors lizard spock).map(&:freeze).freeze
   # rubocop:disable Layout/FirstHashElementIndentation
   WINNING_MOVES = {
-                    'rock' => 'scissors',
-                    'paper' => 'rock',
-                    'scissors' => 'paper'
+                    'rock' => ['scissors', 'lizard'],
+                    'paper' => ['rock', 'spock'],
+                    'scissors' => ['paper', 'lizard'],
+                    'lizard' => ['spock', 'paper'],
+                    'spock' => ['scissors', 'rock']
                   }.freeze
   # rubocop:enable Layout/FirstHashElementIndentation
 
@@ -106,7 +108,13 @@ class Move
   end
 
   def beats?(other_move)
-    WINNING_MOVES[rps_choice] == other_move.rps_choice
+    winning_move = WINNING_MOVES[rps_choice]
+
+    if winning_move.is_a? Array
+      winning_move.include? other_move.rps_choice
+    else
+      winning_move == other_move.rps_choice
+    end
   end
 
   def ties?(other_move)
