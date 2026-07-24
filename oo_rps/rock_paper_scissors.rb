@@ -3,7 +3,7 @@ require 'pry-byebug'
 HUMAN_IDENTITY = :human
 COMPUTER_IDENTITY = :computer
 
-COMPUTER_DISPLAY_NAME = 'Computer'.freeze
+COMPUTER_DISPLAY_NAME = %w(Computer R2D2 Smoke T-Dawg Franklin).sample.freeze
 DEFAULT_HUMAN_DISPLAY_NAME = 'Human'.freeze
 
 CLI_DIVIDER = "\n\n==================\n"
@@ -56,7 +56,8 @@ class Player
 
   def prompt_move
     loop do
-      choice = generic_prompt('Please choose rock, paper, scissors, lizard, or spock:')
+      prompt = 'Please choose rock, paper, scissors, lizard, or spock:'
+      choice = generic_prompt(prompt)
       found_move = Move.find_move(choice)
       return found_move if found_move
 
@@ -71,6 +72,10 @@ class Player
   def to_s
     name
   end
+end
+
+class Computer
+
 end
 
 class Move
@@ -133,7 +138,7 @@ class RPSGame
   def initialize
     @human = Player.new
     @computer = Player.new COMPUTER_IDENTITY
-    reset_scores
+    reset_game
   end
 
   # rubocop:disable Metrics/MethodLength
@@ -144,11 +149,15 @@ class RPSGame
     loop do
       play_round
       if grand_winner?
+        display_history
+
+        divide_screen
         display_grand_winner
+
         divide_screen
         break unless play_again?
         clear_screen
-        reset_scores
+        reset_game
       end
     end
 
@@ -159,11 +168,16 @@ class RPSGame
 
   private
 
-  attr_reader :human, :computer, :human_score, :cpu_score
+  attr_reader :human, :computer, :human_score, :cpu_score, :round_history
 
-  def reset_scores
+  def reset_game
     @human_score = 0
     @cpu_score = 0
+    @round_history = []
+  end
+
+  def round_count
+    round_history.size.next
   end
 
   def intro_sequence
@@ -195,12 +209,23 @@ class RPSGame
     puts 'Goodbye! See you next time!'
   end
 
+  # rubocop:disable Layout/LineLength
+  def add_round_to_history(human_move, cpu_move)
+    round_history << "Round: #{round_count} -[ #{computer}: #{cpu_move} | #{human}: #{human_move} ]"
+  end
+  # rubocop:enable Layout/LineLength
+
+  def display_history
+    puts round_history
+  end
+
   def display_match_results
     human_move = human.move
     cpu_move = computer.move
 
     puts "#{human} chose #{human_move}."
     puts "The #{computer} chose #{cpu_move}."
+    add_round_to_history(human_move, cpu_move)
 
     puts winner_text(human_move, cpu_move)
   end
