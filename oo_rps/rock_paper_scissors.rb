@@ -3,8 +3,7 @@ require 'pry-byebug'
 HUMAN_IDENTITY = :human
 COMPUTER_IDENTITY = :computer
 
-COMPUTER_DISPLAY_NAME = %w(Computer R2D2 Smoke T-Dawg Franklin).sample.freeze
-DEFAULT_HUMAN_DISPLAY_NAME = 'Human'.freeze
+VALID_MOVES = %w(rock paper scissors lizard spock).map(&:freeze).freeze
 
 CLI_DIVIDER = "\n\n==================\n"
 
@@ -22,36 +21,64 @@ def generic_prompt(message = 'Please input text:')
   gets.chomp.strip.downcase
 end
 
-class Player
-  attr_reader :move
-  attr_accessor :name
+class Personality
+  DEFAULT_MOVE_CHANCE = 100
 
-  def initialize(player_type = HUMAN_IDENTITY)
-    @player_type = player_type
-    @move = nil
-    @name = default_name
+  attr_reader :name, :move_chances
+
+  def initialize(name, move_chances = {})
+    @name = name
+    @move_chances = init_move_chances(move_chances)
   end
 
-  def choose
-    chosen_move = human? ? prompt_move : Move.random_move
-    @move = chosen_move
-  end
-
-  def human?
-    @player_type == HUMAN_IDENTITY
-  end
-
-  def ask_name
-    return nil unless human?
-
-    answer = generic_prompt('What do you want to be called?')
-    self.name = format_name(answer)
+  def decide_move
+    loop do
+      random_move = VALID_MOVES.sample
+      probability = move_chances[random_move]
+      return random_move if rand(1..100) <= probability
+    end
   end
 
   private
 
-  def format_name(string)
-    string.split.map(&:capitalize).join ' '
+  def init_move_chances(move_chances)
+    default_value = move_chances[:default] || DEFAULT_MOVE_CHANCE
+    default_chances = VALID_MOVES.map { |move| [move, default_value] }.to_h
+    default_chances.merge! move_chances
+  end
+end
+
+PERSONALITIES = [
+                  Personality.new('R2D2', 'rock' => 100, default: 0),
+                  Personality.new('Hal', 'scissors' => 100, 'rock' => 15, 'paper' => 0, default: 60),
+                  Personality.new('Computer'),
+                  Personality.new('Lizard Himself', 'lizard' => 100, default: 30),
+                  Personality.new('Bob', 'paper' => 70, 'rock' => 0, 'lizard' => 0)
+                ]
+
+class GenericPlayer
+  DEFAULT_DISPLAY_NAME = 'Player'.freeze
+
+  attr_reader :move
+  attr_accessor :name
+
+  def initialize
+    @move = nil
+    @name = set_name
+  end
+
+  def set_name
+    DEFAULT_DISPLAY_NAME
+  end
+
+  def to_s
+    name
+  end
+end
+
+class Player < GenericPlayer
+  def choose
+    @move = prompt_move
   end
 
   def prompt_move
@@ -65,21 +92,37 @@ class Player
     end
   end
 
-  def default_name
-    human? ? DEFAULT_HUMAN_DISPLAY_NAME : COMPUTER_DISPLAY_NAME
+  def ask_name
+    answer = generic_prompt('What do you want to be called?')
+    self.name = format_name(answer)
   end
 
-  def to_s
-    name
+  private
+
+  def format_name(string)
+    string.split.map(&:capitalize).join ' '
   end
 end
 
-class Computer
+class Computer < GenericPlayer
+  attr_reader :personality
 
+  def initialize
+    super
+    randomize_personality
+    @name = personality.name
+  end
+
+  def choose
+    @move = Move.new(personality.decide_move)
+  end
+
+  def randomize_personality
+    @personality = PERSONALITIES.sample
+  end
 end
 
 class Move
-  VALID_MOVES = %w(rock paper scissors lizard spock).map(&:freeze).freeze
   # rubocop:disable Layout/FirstHashElementIndentation
   WINNING_MOVES = {
                     'rock' => ['scissors', 'lizard'],
@@ -136,8 +179,6 @@ class RPSGame
   TIE_MESSAGE = "It's a tie!"
 
   def initialize
-    @human = Player.new
-    @computer = Player.new COMPUTER_IDENTITY
     reset_game
   end
 
@@ -171,6 +212,8 @@ class RPSGame
   attr_reader :human, :computer, :human_score, :cpu_score, :round_history
 
   def reset_game
+    @human = Player.new
+    @computer = Computer.new
     @human_score = 0
     @cpu_score = 0
     @round_history = []
