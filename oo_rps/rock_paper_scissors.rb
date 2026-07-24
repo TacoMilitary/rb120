@@ -1,12 +1,14 @@
 HUMAN_IDENTITY = :human
 COMPUTER_IDENTITY = :computer
+WIN_IDENTITY = :win
+LOSE_IDENTITY = :lose
+TIE_IDENTITY = :equal
+
 COMPUTER_DISPLAY_NAME = 'Computer'.freeze
 DEFAULT_HUMAN_DISPLAY_NAME = 'Human'
-MOVES = %w(rock paper scissors).map!(&:freeze).freeze
 
-def format_name(string)
-  string.split.map(&:capitalize).join ' '
-end
+MOVES = %w(rock paper scissors).map!(&:freeze).freeze
+WINNING_MOVES = {'rock' => 'scissors', 'paper' => 'rock', 'scissors' => 'paper'}.freeze
 
 class Player
   attr_reader :move
@@ -33,7 +35,21 @@ class Player
     self.name = format_name(gets.chomp)
   end
 
+  def compare_move(other_player)
+    if WINNING_MOVES[move] == other_player.move
+      WIN_IDENTITY
+    elsif WINNING_MOVES[other_player.move] == move
+      LOSE_IDENTITY
+    else
+      TIE_IDENTITY
+    end
+  end
+
   private
+
+  def format_name(string)
+    string.split.map(&:capitalize).join ' '
+  end
 
   def random_move
     @move = MOVES.sample
@@ -52,15 +68,6 @@ class Player
       puts 'Sorry. Invalid choice!'
     end
   end
-end
-
-class Move
-end
-
-class Rule
-end
-
-def compare
 end
 
 class RPSGame
@@ -101,21 +108,11 @@ class RPSGame
   def display_winner
     puts "#{human.name} chose #{human.move.upcase}."
     puts "The Computer chose #{computer.move.upcase}."
-    win_message = "#{human.name} won!"
 
-    case human.move
-    when 'rock'
-      puts TIE_MESSAGE if computer.move == 'rock'
-      puts win_message if computer.move == 'scissors'
-      puts LOSE_MESSAGE if computer.move == 'paper'
-    when 'paper'
-      puts TIE_MESSAGE if computer.move == 'paper'
-      puts win_message if computer.move == 'rock'
-      puts LOSE_MESSAGE if computer.move == 'scissors'
-    when 'scissors'
-      puts TIE_MESSAGE if computer.move == 'scissors'
-      puts win_message if computer.move == 'paper'
-      puts LOSE_MESSAGE if computer.move == 'rock'
+    case human.compare_move(computer)
+    when WIN_IDENTITY then puts "#{human.name} won!"
+    when LOSE_IDENTITY then puts LOSE_MESSAGE
+    else puts TIE_MESSAGE
     end
   end
 
