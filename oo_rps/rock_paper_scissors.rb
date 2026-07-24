@@ -8,7 +8,11 @@ COMPUTER_DISPLAY_NAME = 'Computer'.freeze
 DEFAULT_HUMAN_DISPLAY_NAME = 'Human'
 
 MOVES = %w(rock paper scissors).map!(&:freeze).freeze
-WINNING_MOVES = {'rock' => 'scissors', 'paper' => 'rock', 'scissors' => 'paper'}.freeze
+WINNING_MOVES = {
+                  'rock' => 'scissors',
+                  'paper' => 'rock',
+                  'scissors' => 'paper'
+                }.freeze
 
 class Player
   attr_reader :move
@@ -105,6 +109,7 @@ class RPSGame
     puts 'Goodbye! See you next time!'
   end
 
+  # rubocop:disable Metrics/AbcSize
   def display_winner
     puts "#{human.name} chose #{human.move.upcase}."
     puts "The Computer chose #{computer.move.upcase}."
@@ -115,6 +120,7 @@ class RPSGame
     else puts TIE_MESSAGE
     end
   end
+  # rubocop:enable Metrics/AbcSize
 
   def play_again?
     loop do
