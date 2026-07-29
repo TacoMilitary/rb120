@@ -64,6 +64,10 @@ class Board
     squares[square] = marker
   end
 
+  def []=(square, marker)
+    mark_square(square, marker)
+  end
+
   def empty_squares
     squares.keys.select { |square| square_empty?(square) }
   end
@@ -126,7 +130,7 @@ class Human < GenericPlayer
       choice_text = "Choose a square #{square_choices(board)}:"
       answer = CLIUtils.prompt(choice_text).to_i
       if board.square_empty?(answer)
-        board.mark_square(answer, marker)
+        board[answer] = marker
         return
       end
       CLIUtils.error_message("That's not a valid square!")
@@ -153,7 +157,7 @@ end
 class Computer < GenericPlayer
   def take_turn!(board)
     random_square = board.empty_squares.sample
-    board.mark_square(random_square, marker)
+    board[random_square] = marker
   end
 end
 
@@ -179,10 +183,7 @@ class TTTGame
       tournament_loop
       display_tournament_result
       break unless play_again?
-
-      CLIUtils.clear_screen
-      reset_tournament
-      reset_match
+      reset_game
     end
 
     display_goodbye_message
@@ -193,6 +194,12 @@ class TTTGame
 
   attr_reader :board, :cpu, :human, :turn_queue
   attr_accessor :game_state, :human_score, :cpu_score, :last_match
+
+  def reset_game
+    CLIUtils.clear_screen
+    reset_tournament
+    reset_match
+  end
 
   def play_again?
     prompt_text = 'Would you like to play another 5 rounds? ( Y / N )'
@@ -267,12 +274,6 @@ class TTTGame
     when WIN_STATE then self.human_score += 1
     when LOSE_STATE then self.cpu_score += 1
     end
-  end
-
-  def display_last_match(show: false)
-    return unless last_match
-
-    
   end
 
   def display_board_and_last_match
