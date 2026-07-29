@@ -116,13 +116,15 @@ class Board
   end
 end
 
-class GenericPlayer
-  attr_reader :marker
+GenericPlayer = Struct.new('GenericPlayer', :marker)
 
-  def initialize(marker)
-    @marker = marker
-  end
-end
+# class GenericPlayer
+#   attr_reader :marker
+# 
+#   def initialize(marker)
+#     @marker = marker
+#   end
+# end
 
 class Human < GenericPlayer
   def take_turn!(board)
