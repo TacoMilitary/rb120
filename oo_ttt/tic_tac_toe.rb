@@ -230,7 +230,7 @@ class TTTGame
 
   def play_match
     loop do
-      display_board(show_last: true)
+      display_board_and_last_match
       play_current_turn
       turn_end_evaluation
 
@@ -240,7 +240,6 @@ class TTTGame
     end
 
     CLIUtils.clear_screen
-    display_board
     display_turn_result
     sleep(1.5)
   end
@@ -276,14 +275,18 @@ class TTTGame
     
   end
 
-  def display_board(show_last: false)
+  def display_board_and_last_match
+    display_board
+    return unless last_match
+
+    puts "Last Match: #{last_match}\n\n"
+    CLIUtils.divide_screen
+  end
+
+  def display_board
     puts "Your Score: #{human_score} | CPU Score: #{cpu_score}"
     puts "- You are (#{human.marker}) | CPU is (#{cpu.marker})"
     board.display
-    if show_last && last_match
-      puts "Last Match: #{last_match}\n\n"
-      CLIUtils.divide_screen
-    end
   end
 
   def display_tournament_result
@@ -328,6 +331,7 @@ class TTTGame
   end
 
   def display_turn_result
+    display_board
     CLIUtils.divide_screen
     puts turn_result_message
   end
