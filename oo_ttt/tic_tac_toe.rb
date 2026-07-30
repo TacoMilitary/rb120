@@ -18,6 +18,18 @@ module CLIUtils
     puts "[ERROR]: #{message}"
     divide_screen
   end
+
+  def self.multiple_choice(choices)
+    case choices.size
+    when 0 then 'None'
+    when 1 then choices.first.to_s
+    when 2 then "#{choices.first} or #{choices.last}"
+    else
+      joined_string = choices[...-1].join ', '
+      joined_string << ", or #{choices.last}"
+      joined_string
+    end
+  end
 end
 
 class Board
@@ -123,12 +135,11 @@ class GenericPlayer
   @@players_initialized = 0
   DEFAULT_NAME = 'Player'
 
-  attr_reader :marker
-  attr_accessor :name
+  attr_accessor :marker, :name
 
-  def initialize(marker)
+  def initialize
     @@players_initialized += 1
-    @marker = marker
+    @marker = nil
     @name = init_name
   end
 
@@ -150,7 +161,8 @@ end
 class Human < GenericPlayer
   def take_turn!(board)
     loop do
-      choice_text = "Choose a square #{square_choices(board)}:"
+      choices_list = CLIUtils.multiple_choice(board.empty_squares)
+      choice_text = "Choose a square #{choices_list}:"
       answer = CLIUtils.prompt(choice_text).to_i
       if board.square_empty?(answer)
         board[answer] = marker
@@ -171,24 +183,30 @@ class Human < GenericPlayer
     end
   end
 
+  def ask_marker(marker_choices)
+    loop do
+      markers_list = CLIUtils.multiple_choice(marker_choices)
+      choice_text = "What marker do you want to use? (#{markers_list})"
+
+      answer = CLIUtils.prompt(choice_text)
+      possible_marker = find_marker(marker_choices, answer)
+      if possible_marker
+        self.marker = possible_marker
+        return
+      end
+
+      CLIUtils.error_message("That's not a valid choice!")
+    end
+  end
+
   private
+
+  def find_marker(marker_choices, chosen_marker)
+    marker_choices.find { |marker| marker.casecmp? chosen_marker }
+  end
 
   def format_name(string)
     string.split.map(&:capitalize).join ' '
-  end
-
-  def square_choices(board)
-    available_choices = board.empty_squares
-
-    case available_choices.size
-    when 0 then 'None'
-    when 1 then available_choices.first.to_s
-    when 2 then "#{available_choices.first} or #{available_choices.last}"
-    else
-      joined_string = available_choices[...-1].join ', '
-      joined_string << ", or #{available_choices.last}"
-      joined_string
-    end
   end
 end
 
@@ -208,8 +226,7 @@ class Computer < GenericPlayer
 end
 
 class TTTGame
-  HUMAN_MARKER = 'X'
-  CPU_MARKER = 'O'
+  MARKERS = ['X', 'O']
   CONTINUE_STATE = :continue_game
   TOURNAMENT_WIN_SCORE = 5
   TIE_STATE = :tie
@@ -217,22 +234,20 @@ class TTTGame
   LOSE_STATE = :lose
 
   def initialize
-    @human = Human.new(HUMAN_MARKER)
+    @human = Human.new
     reset_tournament
     reset_match
   end
 
   def play
-    CLIUtils.clear_screen
-    display_welcome_message
-    human.ask_name
+    intro_sequence
 
     CLIUtils.divide_screen
     loop do
       tournament_loop
       display_tournament_result
       break unless play_again?
-      reset_game
+      tournament_loop_cleanup
     end
 
     display_goodbye_message
@@ -244,14 +259,27 @@ class TTTGame
   attr_reader :board, :cpu, :human, :turn_queue
   attr_accessor :game_state, :human_score, :cpu_score, :last_match
 
-  def reset_game
+  def intro_sequence
+    CLIUtils.clear_screen
+    display_welcome_message
+    human.ask_name
+    human.ask_marker MARKERS
+    assign_cpu_marker
+  end
+
+  def remaining_markers
+    MARKERS.reject { |marker| human.marker == marker || cpu.marker == marker }
+  end
+
+  def assign_cpu_marker
+    cpu.marker = remaining_markers.sample
+  end
+
+  def tournament_loop_cleanup
     CLIUtils.clear_screen
     reset_tournament
     reset_match
-  end
-
-  def ask_player_name
-
+    assign_cpu_marker
   end
 
   def play_again?
@@ -267,7 +295,7 @@ class TTTGame
   end
 
   def reset_tournament
-    @cpu = Computer.new(CPU_MARKER)
+    @cpu = Computer.new
     @human_score = 0
     @cpu_score = 0
     @last_match = nil
