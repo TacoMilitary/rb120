@@ -23,18 +23,18 @@ end
 class Board
   INITIAL_MARKER = ' '
   WINNING_LINES =
-  [
-    [1, 2, 3], # Horizontals
-    [4, 5, 6],
-    [7, 8, 9],
+    [
+      [1, 2, 3], # Horizontals
+      [4, 5, 6],
+      [7, 8, 9],
 
-    [1, 4, 7], # Verticals
-    [2, 5, 8],
-    [3, 6, 9],
+      [1, 4, 7], # Verticals
+      [2, 5, 8],
+      [3, 6, 9],
 
-    [1, 5, 9], # Diagonals
-    [3, 5, 7]
-  ]
+      [1, 5, 9], # Diagonals
+      [3, 5, 7]
+    ]
 
   def initialize
     @squares = init_squares
@@ -78,7 +78,7 @@ class Board
 
   def line_has_winner?(line)
     compare_marker = squares[line.first]
-    line.all? do|square| 
+    line.all? do |square|
       square_marked?(square) && squares[square] == compare_marker
     end
   end
@@ -101,16 +101,17 @@ class Board
   end
 
   BOARD_ROW_SEPARATOR = '-----+-----+-----'.freeze
+  SQUARE_SIZE = 5
   EMPTY_ROW = '     |     |     '.freeze
 
   def board_line(markers)
-    markers.map { |marker| "  #{marker}  " }.join '|'
+    markers.map { |marker| marker.center(SQUARE_SIZE) }.join '|'
   end
 
   def board_row(markers)
     [
       EMPTY_ROW,
-      board_line(markers), 
+      board_line(markers),
       EMPTY_ROW
     ].join "\n"
   end
@@ -120,7 +121,7 @@ GenericPlayer = Struct.new('GenericPlayer', :marker)
 
 # class GenericPlayer
 #   attr_reader :marker
-# 
+#
 #   def initialize(marker)
 #     @marker = marker
 #   end
@@ -177,7 +178,7 @@ class TTTGame
     reset_match
   end
 
-  def play(tournmanent: false)
+  def play
     CLIUtils.clear_screen
     display_welcome_message
 
