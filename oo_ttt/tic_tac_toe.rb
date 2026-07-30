@@ -185,10 +185,9 @@ class Human < GenericPlayer
 
   def ask_marker(marker_choices)
     loop do
-      markers_list = CLIUtils.multiple_choice(marker_choices)
-      choice_text = "What marker do you want to use? (#{markers_list})"
+      ask_text = marker_asking_text(marker_choices)
+      answer = CLIUtils.prompt(ask_text)
 
-      answer = CLIUtils.prompt(choice_text)
       possible_marker = find_marker(marker_choices, answer)
       if possible_marker
         self.marker = possible_marker
@@ -200,6 +199,11 @@ class Human < GenericPlayer
   end
 
   private
+
+  def marker_asking_text(marker_choices)
+    markers_list = CLIUtils.multiple_choice(marker_choices)
+    "What marker do you want to use? (#{markers_list})"
+  end
 
   def find_marker(marker_choices, chosen_marker)
     marker_choices.find { |marker| marker.casecmp? chosen_marker }
