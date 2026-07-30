@@ -179,7 +179,7 @@ class Human < GenericPlayer
         self.name = format_name(new_name)
         return
       end
-      CLI.error_message("That is not a valid name!")
+      CLIUtils.error_message('That is not a valid name!')
     end
   end
 
