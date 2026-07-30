@@ -117,15 +117,35 @@ class Board
   end
 end
 
-GenericPlayer = Struct.new('GenericPlayer', :marker)
+# GenericPlayer = Struct.new('GenericPlayer', :marker)
 
-# class GenericPlayer
-#   attr_reader :marker
-#
-#   def initialize(marker)
-#     @marker = marker
-#   end
-# end
+class GenericPlayer
+  @@players_initialized = 0
+  DEFAULT_NAME = 'Player'
+
+  attr_reader :marker
+  attr_accessor :name
+
+  def initialize(marker)
+    @@players_initialized += 1
+    @marker = marker
+    @name = init_name
+  end
+
+  def to_s
+    name
+  end
+
+  def upcase
+    to_s.upcase
+  end
+
+  private
+
+  def init_name
+    "#{DEFAULT_NAME} #{@@players_initialized}"
+  end
+end
 
 class Human < GenericPlayer
   def take_turn!(board)
@@ -140,7 +160,22 @@ class Human < GenericPlayer
     end
   end
 
+  def ask_name
+    loop do
+      new_name = CLIUtils.prompt('What would you like to be called?')
+      unless new_name.empty?
+        self.name = format_name(new_name)
+        return
+      end
+      CLI.error_message("That is not a valid name!")
+    end
+  end
+
   private
+
+  def format_name(string)
+    string.split.map(&:capitalize).join ' '
+  end
 
   def square_choices(board)
     available_choices = board.empty_squares
@@ -158,9 +193,17 @@ class Human < GenericPlayer
 end
 
 class Computer < GenericPlayer
+  NAMES = ['Joshua', 'CPU', 'R2-D2', 'Computer', 'K-9', 'C-3PO']
+
   def take_turn!(board)
     random_square = board.empty_squares.sample
     board[random_square] = marker
+  end
+
+  private
+
+  def init_name
+    NAMES.sample
   end
 end
 
@@ -174,6 +217,7 @@ class TTTGame
   LOSE_STATE = :lose
 
   def initialize
+    @human = Human.new(HUMAN_MARKER)
     reset_tournament
     reset_match
   end
@@ -181,7 +225,9 @@ class TTTGame
   def play
     CLIUtils.clear_screen
     display_welcome_message
+    human.ask_name
 
+    CLIUtils.divide_screen
     loop do
       tournament_loop
       display_tournament_result
@@ -204,6 +250,10 @@ class TTTGame
     reset_match
   end
 
+  def ask_player_name
+
+  end
+
   def play_again?
     prompt_text = 'Would you like to play another 5 rounds? ( Y / N )'
     answer = CLIUtils.prompt(prompt_text)
@@ -212,13 +262,12 @@ class TTTGame
 
   def reset_match
     @board = Board.new
-    @human = Human.new(HUMAN_MARKER)
-    @cpu = Computer.new(CPU_MARKER)
     @turn_queue = [human, cpu]
     @game_state = CONTINUE_STATE
   end
 
   def reset_tournament
+    @cpu = Computer.new(CPU_MARKER)
     @human_score = 0
     @cpu_score = 0
     @last_match = nil
@@ -288,8 +337,8 @@ class TTTGame
   end
 
   def display_board
-    puts "Your Score: #{human_score} | CPU Score: #{cpu_score}"
-    puts "- You are (#{human.marker}) | CPU is (#{cpu.marker})"
+    puts "#{human.upcase}: #{human_score} | #{cpu.upcase}: #{cpu_score}"
+    puts "- You are (#{human.marker}) | #{cpu.upcase} is (#{cpu.marker})"
     board.display
   end
 
@@ -311,15 +360,15 @@ class TTTGame
 
   def display_goodbye_message
     CLIUtils.divide_screen
-    puts "Thanks for playing! Goodbye!\n\n"
+    puts "Thanks for playing, #{human}! Goodbye!\n\n"
   end
 
   def tournament_result_message
     case game_state
     when WIN_STATE
-      "You've won the Tournament! You won 5 rounds!"
+      "#{human} won the Tournament! #{human} won 5 rounds!"
     when LOSE_STATE
-      "You lost the Tournament! The Computer wins!"
+      "You lost the Tournament! #{cpu} wins!"
     end
   end
 
@@ -328,9 +377,9 @@ class TTTGame
     when TIE_STATE then
       "The board was filled. It's a tie!"
     when WIN_STATE
-      "You won! You got three squares in a row!"
+      "#{human} won! #{human} got three squares in a row!"
     when LOSE_STATE
-      "You lost! The Computer got three squares!"
+      "You lost! #{cpu} got three squares!"
     end
   end
 
