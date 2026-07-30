@@ -406,7 +406,7 @@ class TTTGame
 
   def turn_result_message
     case game_state
-    when TIE_STATE then
+    when TIE_STATE
       "The board was filled. It's a tie!"
     when WIN_STATE
       "#{human} won! #{human} got three squares in a row!"
