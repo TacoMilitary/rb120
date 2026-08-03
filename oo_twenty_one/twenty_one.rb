@@ -243,9 +243,9 @@ class BlackjackGame
     draw_initial_cards
 
     early_blackjack = human.blackjack? || cpu.blackjack?
-    skip_dealer_turn = early_blackjack || human.bust?
-
     players_turn unless early_blackjack
+
+    skip_dealer_turn = early_blackjack || human.bust?
     dealers_turn unless skip_dealer_turn
 
     display_full_table if skip_dealer_turn
