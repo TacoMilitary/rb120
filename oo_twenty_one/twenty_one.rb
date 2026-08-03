@@ -1,6 +1,5 @@
-require 'pry-byebug'
-
 module CLI
+  DEFAULT_ERROR = 'Unknown error!'
   SCREEN_DIVIDER = "\n================\n\n"
   DEFAULT_PROMPT = 'Please enter text:'
   USER_PROMPT = '> '
@@ -17,6 +16,10 @@ module CLI
     puts message
     print USER_PROMPT
     gets.chomp.strip.downcase
+  end
+
+  def self.error_message(message = DEFAULT_ERROR)
+    puts "[ERROR]: #{message}"
   end
 end
 
