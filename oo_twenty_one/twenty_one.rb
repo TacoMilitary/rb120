@@ -402,4 +402,7 @@ class BlackjackGame
   end
 end
 
-BlackjackGame.new.play
+loop do
+  BlackjackGame.new.play
+  sleep(3)
+end
