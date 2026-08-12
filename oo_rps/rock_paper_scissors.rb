@@ -1,4 +1,4 @@
-require 'pry-byebug'
+# require 'pry-byebug'
 
 HUMAN_IDENTITY = :human
 COMPUTER_IDENTITY = :computer
