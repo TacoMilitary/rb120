@@ -5,29 +5,38 @@ welcome: |
   Otherwise, type (%s)!
 
 tutorial: |
-  Tetris is a game played on a grid of squares or "cells".
+  BASICS:
 
-  Your goal is play for as long as you can, guiding the block shapes ("tetrominos"),
-  as they descend from the top of the grid.
+    Tetris is a game played on a grid of squares or "cells".
 
-  A tetromino will solidify when it touches the bottom of the grid or another solid cell.
-  When this occurs, a new tetromino will appear for you to control.
+    Your goal is play for as long as you can, guiding the block shapes ("tetrominos"),
+    as they descend from the top of the grid.
 
-  Tetrominos can be moved left or right, and rotated in 90 degree increments.
+    A tetromino will solidify when it touches the bottom of the grid or another solid cell.
+    When this occurs, a new tetromino will appear for you to control.
 
-  You will have time to think between actions. The tetromino only falls one cell
-  after an action is performed.
+  CONTROLS:
 
-  Rotating does not cause the tetromino to fall. This is a safe action.
+    Tetrominos can be moved left or right, and rotated in 90 degree increments.
 
-  You lose when a tetromino has no more space to fall and touches the top of the grid.
+    You will have time to think between actions. The tetromino only falls one cell
+    after an action is performed.
 
-  Connecting an entire row of solid cells will cause the row is disintegrate. The solid rows
-  above will collapse to fill the space. This is your key to success!
+    Rotating does not cause the tetromino to fall. This is a safe action.
+
+    A tetromino "shadow" will appear that shows you where the tetromino is going to fall.
+
+  LOSE/WIN:
+
+    You lose when a tetromino has no more space to fall and touches the top of the grid.
+
+    Connecting an entire row of solid cells will cause the row is disintegrate. The solid rows
+    above will collapse to fill the space. This is your key to success!
 
   An empty cell looks like this: %s
   A tetromino limb looks like this: %s
   The center of a tetromino looks like this: %s
+  A tetromino shadow looks like this: %s
   A solid cell looks like this: %s
 
 

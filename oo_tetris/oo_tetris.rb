@@ -48,6 +48,7 @@ class Cell
   EMPTY_CELL_VISUAL = '-'
   FILLED_CELL_VISUAL = '[ ]'
   CENTER_CELL_VISUAL = '[+]'
+  SHADOW_CELL_VISUAL = '( )'
   SOLID_CELL_VISUAL = '[=]'
 
   attr_reader :solid
@@ -71,6 +72,10 @@ class Cell
 
   def shape_center_fill
     self.visual = CENTER_CELL_VISUAL
+  end
+
+  def shade
+    self.visual = SHADOW_CELL_VISUAL
   end
 
   def solidify
@@ -117,6 +122,10 @@ class Grid
     end
 
     draw_shape_center(shape)
+  end
+
+  def draw_shadow(shape)
+    shape.filled_x_coords
   end
 
   def draw_shape_center(shape)
@@ -272,6 +281,10 @@ class Shape
     limbs.map { |limb| limb_absolute_coord(limb) }
   end
 
+  def filled_x_coords
+    filled_coords.each_with_object(Set.new) { |coord, set| set << coord[:x] }
+  end
+
   def rotate(rotation_direction = CLOCKWISE_SIGN)
     return unless can_rotate?
 
@@ -413,6 +426,7 @@ class TetrisGame
 
   ACTION_TIME_STEP = :step
   ACTION_DONT_STEP = :dont_step
+  ACTION_KILL_TETROMINO = :kill
 
   TIME_AFTER_ACTION = 0.1
   CELL_FALL_TIME = 0.05
@@ -429,6 +443,7 @@ class TetrisGame
     Cell::EMPTY_CELL_VISUAL,
     Cell::FILLED_CELL_VISUAL,
     Cell::CENTER_CELL_VISUAL,
+    Cell::SHADOW_CELL_VISUAL,
     Cell::SOLID_CELL_VISUAL
   )
 
@@ -506,9 +521,9 @@ class TetrisGame
       draw_shape_and_display_grid
 
       sleep TIME_AFTER_ACTION
-      player_action_loop
+      action_result = player_action_loop
 
-      break if tetromino_stop_control?
+      break if action_result == ACTION_KILL_TETROMINO
 
       tetromino_fall_step
 
@@ -534,9 +549,9 @@ class TetrisGame
   def player_action_loop
     loop do
       player_action = player.prompt_tetromino_action
-      action_status = perform_player_action(player_action)
+      action_result = perform_player_action(player_action)
 
-      break unless action_status == ACTION_DONT_STEP
+      break action_result unless action_result == ACTION_DONT_STEP
 
       draw_shape_and_display_grid
     end
@@ -585,6 +600,7 @@ class TetrisGame
       draw_shape_and_display_grid
       sleep TETROMINO_FREEFALL_WAIT
     end
+    ACTION_KILL_TETROMINO
   end
 
   def clear_full_rows
