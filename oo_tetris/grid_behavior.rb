@@ -3,7 +3,7 @@ class Cell
   EMPTY_CELL_VISUAL = '-'
   FILLED_CELL_VISUAL = '[ ]'
   CENTER_CELL_VISUAL = '[+]'
-  SHADOW_CELL_VISUAL = '[_]'
+  SHADOW_CELL_VISUAL = '( )'
   SOLID_CELL_VISUAL = '[=]'
 
   attr_reader :solid

@@ -60,15 +60,20 @@ class TetrisGame
   ACTION_DONT_STEP = :dont_step
   ACTION_KILL_TETROMINO = :kill
 
+  FAIL_TETROMINO_SPAWN = :failed_spawn
+  SUCESSFUL_TETROMINO_SPAWN = :spawned_tetromino
+
   TIME_AFTER_ACTION = 0.1
   CELL_FALL_TIME = 0.05
   TETROMINO_FREEFALL_WAIT = 0.025
-  TETROMINO_DEATH_WAIT = 0.75
+  TETROMINO_DEATH_WAIT = 0.5
 
   LEFT_DIRECTION = -1
   RIGHT_DIRECTION = 1
 
   AFTER_TUTORIAL_TEXT = TetrisText[:after_tutorial] % START_ANSWER
+
+  LOSE_TEXT = TetrisText[:lose]
 
   TUTORIAL_TEXT = format(
     TetrisText[:tutorial],
@@ -87,18 +92,19 @@ class TetrisGame
 
   def play
     intro_sequence
-    begin_new_game
+    game_sequence
   end
 
   private
 
   attr_reader :grid, :player
-  attr_accessor :shape
+  attr_accessor :shape, :desired_spawn_x
 
   def reset_game
     @grid = Grid.new
     @shape = nil
     @player = Player.new
+    @desired_spawn_x = grid.width / 2
   end
 
   def intro_sequence
@@ -132,20 +138,56 @@ class TetrisGame
     end
   end
 
-  def begin_new_game
+  def game_sequence
     CLI.clear_screen
     reset_game
     tetris_match_loop
+    display_match_loss
   end
 
   def tetris_match_loop
     loop do
-      self.shape = TetrisShapes.random_shape
-      tetromino_control_loop unless tetromino_stop_control?
+      spawn_result = spawn_fitting_tetromino
+      break if spawn_result == FAIL_TETROMINO_SPAWN
+
+      tetromino_control_loop
       tetromino_die
-      sleep TETROMINO_DEATH_WAIT
       clear_full_rows
     end
+
+    tetromino_die
+    display_grid
+  end
+
+  def spawn_fitting_tetromino
+    randomized_shapes = TetrisShapes.all_shapes.shuffle!
+
+    randomized_shapes.each do |random_shape|
+      self.shape = random_shape
+      spawn_result = set_shape_spawn
+
+      return spawn_result if spawn_result == SUCESSFUL_TETROMINO_SPAWN
+    end
+
+    FAIL_TETROMINO_SPAWN
+  end
+
+  def set_shape_spawn
+    desired_spawns.each do |x_pos|
+      shape.position[:x] = x_pos
+
+      unless grid.shape_invalid_position?(shape)
+        return SUCESSFUL_TETROMINO_SPAWN
+      end
+    end
+
+    shape.position[:x] = desired_spawns.first
+    FAIL_TETROMINO_SPAWN
+  end
+
+  def desired_spawns
+    sort_distance_to_desired = proc { |x_pos| (desired_spawn_x - x_pos).abs }
+    (1..grid.width).to_a.shuffle.sort_by(&sort_distance_to_desired)
   end
 
   def tetromino_control_loop
@@ -170,6 +212,8 @@ class TetrisGame
   def tetromino_die
     grid.solidify_shape shape
     display_grid
+    self.desired_spawn_x = shape.position[:x]
+    sleep TETROMINO_DEATH_WAIT
   end
 
   def tetromino_fall_step
@@ -196,9 +240,9 @@ class TetrisGame
     when Player::MOVE_RIGHT_ACTION then tetromino_move_right
     when Player::FREEFALL_ACTION then tetromino_freefall
     when Player::ROTATE_CLOCKWISE_ACTION
-      try_rotate_tetromino Shape::CLOCKWISE_SIGN
+      rotate_tetromino Shape::CLOCKWISE_SIGN
     when Player::ROTATE_COUNTER_ACTION
-      try_rotate_tetromino Shape::COUNTER_CLOCKWISE_SIGN
+      rotate_tetromino Shape::COUNTER_CLOCKWISE_SIGN
     end
   end
 
@@ -219,7 +263,7 @@ class TetrisGame
     shape.position[:y] += 1
   end
 
-  def try_rotate_tetromino(rotation_sign = Shape::CLOCKWISE_SIGN)
+  def rotate_tetromino(rotation_sign = Shape::CLOCKWISE_SIGN)
     shape.rotate(rotation_sign)
     shape.rotate(-rotation_sign) if grid.shape_invalid_position?(shape)
 
@@ -277,6 +321,11 @@ class TetrisGame
 
   def no_solid_cells_in_row?(row)
     row.values.none?(&:solid?)
+  end
+
+  def display_match_loss
+    puts LOSE_TEXT
+    CLI.divide_screen
   end
 
   def display_grid

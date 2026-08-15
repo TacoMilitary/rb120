@@ -4,6 +4,11 @@ welcome: |
   If you'd like a rundown on how to play please type, (%s).
   Otherwise, type (%s)!
 
+lose: |
+  OH NO!
+
+  You LOST! That was a great game!
+
 tutorial: |
   BASICS:
 

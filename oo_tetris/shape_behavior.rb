@@ -38,6 +38,10 @@ module TetrisShapes
       { LIMB_DATA => "  N\nNNN", ROTATE_CENTER => { y: 1, x: 2 } }
     ].freeze
 
+  def self.all_shapes
+    SHAPES.map { |shape_data| Shape.new(shape_data) }
+  end
+
   def self.random_shape
     Shape.new(SHAPES.sample)
   end
@@ -82,7 +86,7 @@ class Shape
   def rotate(rotation_direction = CLOCKWISE_SIGN)
     return unless can_rotate?
 
-    offset_position_by_rotation
+    offset_position_by_rotation(rotation_direction)
     limbs.each { |limb| rotate_limb!(limb, rotation_direction) }
   end
 
@@ -100,7 +104,7 @@ class Shape
     !!center_limb
   end
 
-  def offset_position_by_rotation
+  def offset_position_by_rotation(rotation_direction = CLOCKWISE_SIGN)
     rotated_center = limb_rotated(center_limb, rotation_direction)
 
     position[:x] -= rotated_center[:x] - center_limb[:x]
