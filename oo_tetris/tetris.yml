@@ -1,0 +1,33 @@
+welcome: |
+  WELCOME to [TETRIS]!
+
+  If you'd like a rundown on how to play please type, (%s).
+  Otherwise, type (%s)!
+
+tutorial: |
+  Tetris is a game played on a grid of squares or "cells".
+
+  Your goal is play for as long as you can, guiding the block shapes ("tetrominos"),
+  as they descend from the top of the grid.
+
+  A tetromino will solidify when it touches the bottom of the grid or another solid cell.
+  When this occurs, a new tetromino will appear for you to control.
+
+  You lose when a tetromino has no more space to fall and touches the top of the grid.
+
+  Connecting an entire row of solid cells will cause the row is disintegrate. The solid rows
+  above will collapse to fill the space. This is your key to survival.
+
+  An empty cell looks like this: %s
+  A tetromino filled cell looks like this: %s
+  A solid cell looks like this: %s
+
+
+after_tutorial: |
+  To start, please type (%s)!
+
+tetromino_control_prompt: |
+  To Move Left:  < (,)
+  To Move Right: > (.)
+  
+  Or input nothing to fall twice.

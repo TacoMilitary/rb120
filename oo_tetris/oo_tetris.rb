@@ -1,32 +1,104 @@
-class GridSquare
-  SQUARE_SIZE = 3
-  EMPTY_SQUARE_VISUAL = '-'
-  FILLED_SQUARE_VISUAL = '[ ]'
+require 'yaml'
 
-  attr_reader :filled
+# rubocop:disable Style/OneClassPerFile
+
+module CLI
+  DEFAULT_PROMPT = 'Please enter text:'
+  DEFAULT_ERROR = 'Unknown error!'
+  SCREEN_DIVIDER = "\n------------------------\n\n"
+
+  def self.divide_screen
+    print SCREEN_DIVIDER
+  end
+
+  def self.clear_screen
+    system('clear') || system('cls') || divide_screen
+  end
+
+  def self.user_input
+    print "> "
+    gets.chomp.strip.downcase
+  end
+
+  def self.prompt(message = DEFAULT_PROMPT)
+    puts message
+    divide_screen
+    user_input
+  end
+
+  def self.error(message = DEFAULT_ERROR)
+    divide_screen
+    puts "[ERROR]: #{message}"
+    divide_screen
+  end
+end
+
+module TetrisText
+  TEXTS = YAML.load_file('tetris.yml')
+
+  def self.[](key)
+    TEXTS[key.to_s]
+  end
+end
+
+module TetrisShapes
+  # Golomb names taken from
+  # "https://quuxplusone.github.io/blog/2025/04/19/tetromino-names/"
+  SHAPES =
+    [
+      "NN\nNN", # Square tetromino
+      " N\nNNN", # T-tetromino
+      "NNNN", # Straight tetromino
+      " NN\nNN", # Skrew tetromino green
+      "NN\n NN", # Skrew tetromino red
+      "N\nNNN", # L-tetromino blue
+      "  N\nNNN" # L-tetromino orange
+    ]
+
+  SHAPES.map!(&:freeze).freeze
+
+  def self.random_shape
+    Shape.new(SHAPES.sample)
+  end
+end
+
+class Cell
+  CELL_VISUAL_SIZE = 3
+  EMPTY_CELL_VISUAL = '-'
+  FILLED_CELL_VISUAL = '[ ]'
+  SOLID_CELL_VISUAL = '[=]'
+
+  attr_reader :solid
 
   def initialize
     clear
-    fill if rand(1..30) <= 2
   end
 
   def to_s
-    visual.center SQUARE_SIZE
+    visual.center CELL_VISUAL_SIZE
   end
 
   def clear
-    self.filled = false
-    self.visual = EMPTY_SQUARE_VISUAL
+    self.solid = false
+    self.visual = EMPTY_CELL_VISUAL
   end
 
-  def fill
-    self.filled = true
-    self.visual = FILLED_SQUARE_VISUAL
+  def shape_fill
+    self.visual = FILLED_CELL_VISUAL
+  end
+
+  def solidify
+    self.solid = true
+    self.visual = SOLID_CELL_VISUAL
+  end
+
+  def solid?
+    @solid
   end
 
   private
 
-  attr_writer :filled
+  attr_writer :solid
 
   attr_accessor :visual
 end
@@ -34,11 +106,17 @@ end
 class Grid
   GRID_BORDER_VERT = '||'
   GRID_BORDER_HORIZ = '='
+  GRID_DEFAULT_WIDTH = 10
+  GRID_DEFAULT_HEIGHT = 20
 
-  def initialize(width = 20, height = 35)
-    @board_visual_width = (width * GridSquare::SQUARE_SIZE) +
+  attr_reader :height, :width
+
+  def initialize(width = GRID_DEFAULT_WIDTH, height = GRID_DEFAULT_HEIGHT)
+    @board_visual_width = (width * Cell::CELL_VISUAL_SIZE) +
                           (GRID_BORDER_VERT.size * 2)
-    @coordinate = init_coordinate(width, height)
+    @width = width
+    @height = height
+    @coordinate = init_coordinate
   end
 
   def to_s
@@ -46,7 +124,65 @@ class Grid
     "#{vertical_visual}\n#{grid_playable_visual}\n#{vertical_visual}"
   end
 
+  def draw_shape(shape)
+    shape.filled_coords.each do |coord|
+      cell = find_cell(coord)
+      cell&.shape_fill
+    end
+  end
+
+  def undraw_shape(shape)
+    shape.filled_coords.each do |coord|
+      cell = find_cell(coord)
+      cell&.clear
+    end
+  end
+
+  def solidify_shape(shape)
+    shape.filled_coords.each do |coord|
+      cell = find_cell(coord)
+      cell&.solidify
+    end
+  end
+
+  def shape_move_x?(shape, direction_sign = 1)
+    shape.filled_coords.none? do |adjacent_coord|
+      adjacent_coord[:x] += 1 * direction_sign
+      coord_out_bounds?(adjacent_coord) || !!find_cell(adjacent_coord)&.solid?
+    end
+  end
+
+  def shape_touching_solid?(shape)
+    shape.filled_coords.any? { |coord| coord_touching_solid?(coord) }
+  end
+
+  def coord_touching_solid?(coord)
+    return true if coord_touching_bottom?(coord)
+    return true if find_cell(coord)&.solid?
+
+    coord_under = coord.dup
+    coord_under[:y] += 1
+
+    cell = find_cell(coord_under)
+    !!cell&.solid?
+  end
+
+  def coord_touching_bottom?(coord)
+    coord[:y] == height
+  end
+
+  def coord_out_bounds?(coord)
+    coord[:y] <= 0 || coord[:y] > height ||
+      coord[:x] <= 0 || coord[:x] > width
+  end
+
   private
+
+  def find_cell(coord)
+    return nil if coord_out_bounds?(coord)
+
+    coordinate[coord[:y]][coord[:x]]
+  end
 
   def grid_vertical_visual
     GRID_BORDER_HORIZ * board_visual_width
@@ -58,11 +194,11 @@ class Grid
     end.join "\n"
   end
 
-  def init_coordinate(width, height)
+  def init_coordinate
     coordinate = Hash.new
-    (1..height).each do |x|
-      coordinate[x] = Hash.new
-      (1..width).each { |y| coordinate[x][y] = GridSquare.new }
+    (1..height).each do |y|
+      coordinate[y] = Hash.new
+      (1..width).each { |x| coordinate[y][x] = Cell.new }
     end
     coordinate
   end
@@ -70,4 +206,281 @@ class Grid
   attr_reader :coordinate, :board_visual_width
 end
 
-puts Grid.new
+class Shape
+  FILLED_CELL_PATTERN = 'N'
+  EMPTY_CELL_PATTERN = ' '
+  EMPTY_SPACE_VISUAL = ' ' * Cell::FILLED_CELL_VISUAL.size
+
+  VISUAL_REGEX = /#{FILLED_CELL_PATTERN}|#{EMPTY_CELL_PATTERN}/
+  VISUAL_HASH = {
+    FILLED_CELL_PATTERN => Cell::FILLED_CELL_VISUAL,
+    EMPTY_CELL_PATTERN => EMPTY_SPACE_VISUAL
+  }
+
+  DEFAULT_POSITION = { y: 1, x: 1 }
+
+  attr_reader :visual, :limbs, :position
+
+  def initialize(shape_string)
+    @visual = create_visual(shape_string)
+    @limbs = translate_shape_to_data(shape_string)
+    @position = DEFAULT_POSITION.dup
+  end
+
+  def filled_coords
+    limbs.map { |limb| limb_absolute_coord(limb) }
+  end
+
+  alias to_s visual
+
+  private
+
+  def limb_absolute_coord(limb)
+    {
+      y: position[:y] + limb[:y],
+      x: position[:x] + limb[:x]
+    }
+  end
+
+  def create_visual(shape_string)
+    shape_string.gsub(VISUAL_REGEX, VISUAL_HASH)
+  end
+
+  def translate_shape_to_data(shape_string)
+    data = []
+    shape_string.split(/$/).each_with_index do |row, y_coord|
+      clean_row = row.delete "\n"
+      data.concat row_shape_x_coords(y_coord, clean_row)
+    end
+
+    data
+  end
+
+  # rubocop:disable Metrics/MethodLength
+  def row_shape_x_coords(y_coord, row_shape_string)
+    current_coord = 0
+    last_matched_index = 0
+    row_coords = []
+    (0...row_shape_string.size).each do |substr_index|
+      pattern = row_shape_string[last_matched_index..substr_index]
+      if [EMPTY_CELL_PATTERN, FILLED_CELL_PATTERN].include? pattern
+        row_coords << { y: y_coord, x: current_coord } if cell_pattern?(pattern)
+        current_coord += 1
+        last_matched_index = substr_index.next
+      end
+    end
+    row_coords
+  end
+  # rubocop:enable Metrics/MethodLength
+
+  def cell_pattern?(pattern)
+    pattern == FILLED_CELL_PATTERN
+  end
+end
+
+class Player
+  ACTION_PROMPT = TetrisText[:tetromino_control_prompt]
+  INVALID_ACTION = 'That is not a valid action!'
+
+  FALL_ACTION = :fall
+  MOVE_LEFT_ACTION = :move_left
+  MOVE_RIGHT_ACTION = :move_right
+
+  INPUTS_FOR_ACTIONS = {
+    ['<', ','] => MOVE_LEFT_ACTION,
+    ['>', '.'] => MOVE_RIGHT_ACTION
+  }.freeze
+
+  def prompt_tetromino_action
+    puts ACTION_PROMPT
+    CLI.divide_screen
+
+    loop do
+      action = find_action(CLI.user_input)
+      return action if action
+
+      CLI.error(INVALID_ACTION)
+    end
+  end
+
+  private
+
+  def find_action(player_input)
+    return FALL_ACTION if player_input.empty?
+
+    INPUTS_FOR_ACTIONS.keys.each do |input_list|
+      return INPUTS_FOR_ACTIONS[input_list] if input_list.include? player_input
+    end
+
+    nil
+  end
+end
+
+class TetrisGame
+  TUTORIAL_ANSWER = 'tutorial'
+  START_ANSWER = 'start'
+  INVALID_CHOICE = 'Invalid answer!'
+
+  ACTION_TIME_STEP = :step
+  ACTION_DONT_STEP = :dont_step
+
+  TIME_AFTER_ACTION = 0.3
+  LEFT_DIRECTION = -1
+  RIGHT_DIRECTION = 1
+
+  AFTER_TUTORIAL_TEXT = TetrisText[:after_tutorial] % START_ANSWER
+
+  TUTORIAL_TEXT = format(
+    TetrisText[:tutorial],
+    Cell::EMPTY_CELL_VISUAL,
+    Cell::FILLED_CELL_VISUAL,
+    Cell::SOLID_CELL_VISUAL
+  )
+
+  WELCOME_TEXT = format(
+    TetrisText[:welcome],
+    TUTORIAL_ANSWER,
+    START_ANSWER
+  )
+
+  def play
+    intro_sequence
+    begin_new_game
+  end
+
+  private
+
+  attr_reader :grid, :player
+  attr_accessor :shape
+
+  def reset_game
+    @grid = Grid.new
+    @shape = nil
+    @player = Player.new
+  end
+
+  def intro_sequence
+    CLI.clear_screen
+    start_or_tutorial
+  end
+
+  def start_or_tutorial
+    puts WELCOME_TEXT
+    CLI.divide_screen
+
+    loop do
+      answer = CLI.user_input
+
+      tutorial_answer_loop if answer == TUTORIAL_ANSWER
+      break if [TUTORIAL_ANSWER, START_ANSWER].include? answer
+
+      CLI.error INVALID_CHOICE
+    end
+  end
+
+  def tutorial_answer_loop
+    CLI.clear_screen
+    puts TUTORIAL_TEXT
+    CLI.divide_screen
+    loop do
+      answer = CLI.prompt(AFTER_TUTORIAL_TEXT)
+      break if answer == START_ANSWER
+
+      CLI.error INVALID_CHOICE
+    end
+  end
+
+  def begin_new_game
+    CLI.clear_screen
+    reset_game
+    tetris_match_loop
+  end
+
+  def tetris_match_loop
+    loop do
+      self.shape = TetrisShapes.random_shape
+      tetromino_control_loop unless tetromino_stop_control?
+      tetromino_die
+      sleep(1)
+    end
+  end
+
+  def tetromino_control_loop
+    loop do
+      draw_shape_and_display_grid
+
+      sleep TIME_AFTER_ACTION
+      player_action_loop
+
+      break if tetromino_stop_control?
+
+      draw_shape_and_display_grid
+      sleep TIME_AFTER_ACTION
+      tetromino_fall_step
+
+      break if tetromino_stop_control?
+    end
+  end
+
+  def tetromino_stop_control?
+    grid.shape_touching_solid? shape
+  end
+
+  def tetromino_die
+    grid.solidify_shape shape
+    display_grid
+  end
+
+  def player_action_loop
+    loop do
+      player_action = player.prompt_tetromino_action
+      action_status = perform_player_action(player_action)
+
+      break unless action_status == ACTION_DONT_STEP
+
+      draw_shape_and_display_grid
+    end
+  end
+
+  def perform_player_action(player_action)
+    case player_action
+    when Player::FALL_ACTION then tetromino_fall_step
+    when Player::MOVE_LEFT_ACTION then tetromino_move_left
+    when Player::MOVE_RIGHT_ACTION then tetromino_move_right
+    end
+  end
+
+  def tetromino_move_left
+    tetromino_move_x LEFT_DIRECTION
+  end
+
+  def tetromino_move_right
+    tetromino_move_x RIGHT_DIRECTION
+  end
+
+  def tetromino_move_x(direction_sign = RIGHT_DIRECTION)
+    return ACTION_DONT_STEP unless grid.shape_move_x?(shape, direction_sign)
+    shape.position[:x] += 1 * direction_sign
+  end
+
+  def tetromino_fall_step
+    shape.position[:y] += 1
+  end
+
+  def display_grid
+    CLI.clear_screen
+    puts "---] TETRIS [---\n\n"
+    puts grid
+    puts
+  end
+
+  def draw_shape_and_display_grid
+    grid.draw_shape(shape)
+    display_grid
+    grid.undraw_shape(shape)
+  end
+end
+
+# rubocop:enable Style/OneClassPerFile
+
+TetrisGame.new.play
