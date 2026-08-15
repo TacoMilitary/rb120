@@ -1,5 +1,7 @@
 require 'yaml'
 
+require_relative 'tetris_shapes.rb'
+
 # rubocop:disable Style/OneClassPerFile
 
 module CLI
@@ -41,31 +43,11 @@ module TetrisText
   end
 end
 
-module TetrisShapes
-  # Golomb names taken from
-  # "https://quuxplusone.github.io/blog/2025/04/19/tetromino-names/"
-  SHAPES =
-    [
-      "NN\nNN", # Square tetromino
-      " N\nNNN", # T-tetromino
-      "NNNN", # Straight tetromino
-      " NN\nNN", # Skrew tetromino green
-      "NN\n NN", # Skrew tetromino red
-      "N\nNNN", # L-tetromino blue
-      "  N\nNNN" # L-tetromino orange
-    ]
-
-  SHAPES.map!(&:freeze).freeze
-
-  def self.random_shape
-    Shape.new(SHAPES.sample)
-  end
-end
-
 class Cell
   CELL_VISUAL_SIZE = 3
   EMPTY_CELL_VISUAL = '-'
   FILLED_CELL_VISUAL = '[ ]'
+  CENTER_CELL_VISUAL = '[+]'
   SOLID_CELL_VISUAL = '[=]'
 
   attr_reader :solid
@@ -85,6 +67,10 @@ class Cell
 
   def shape_fill
     self.visual = FILLED_CELL_VISUAL
+  end
+
+  def shape_center_fill
+    self.visual = CENTER_CELL_VISUAL
   end
 
   def solidify
@@ -109,7 +95,7 @@ class Grid
   GRID_DEFAULT_WIDTH = 10
   GRID_DEFAULT_HEIGHT = 20
 
-  attr_reader :height, :width
+  attr_reader :height, :width, :board_visual_width
 
   def initialize(width = GRID_DEFAULT_WIDTH, height = GRID_DEFAULT_HEIGHT)
     @board_visual_width = (width * Cell::CELL_VISUAL_SIZE) +
@@ -129,6 +115,16 @@ class Grid
       cell = find_cell(coord)
       cell&.shape_fill
     end
+
+    draw_shape_center(shape)
+  end
+
+  def draw_shape_center(shape)
+    center_coordinates = shape.absolute_center_coord
+    return unless center_coordinates
+
+    cell = find_cell(center_coordinates)
+    cell&.shape_center_fill
   end
 
   def undraw_shape(shape)
@@ -150,12 +146,12 @@ class Grid
     row.values.all?(&:solid?)
   end
 
-  def clear_row(row_y_value)
+  def clear_row!(row_y_value)
     row = coordinate[row_y_value]
     row.values.each(&:clear)
   end
 
-  def deep_clear_row(row_y_value)
+  def deep_clear_row!(row_y_value)
     coordinate[row_y_value] = init_row_columns
   end
 
@@ -171,8 +167,16 @@ class Grid
     end
   end
 
+  def shape_invalid_position?(shape)
+    shape_out_bounds?(shape) || shape_touching_solid?(shape)
+  end
+
   def shape_touching_solid?(shape)
     shape.filled_coords.any? { |coord| coord_touching_solid?(coord) }
+  end
+
+  def shape_out_bounds?(shape)
+    shape.filled_coords.any? { |coord| coord_out_bounds?(coord) }
   end
 
   def coord_touching_solid?(coord)
@@ -233,13 +237,16 @@ class Grid
     (1..width).to_h { |x_pos| [x_pos, Cell.new] }
   end
 
-  attr_reader :coordinate, :board_visual_width
+  attr_reader :coordinate
 end
 
 class Shape
-  FILLED_CELL_PATTERN = 'N'
-  EMPTY_CELL_PATTERN = ' '
+  FILLED_CELL_PATTERN = TetrisShapes::FILLED_CELL_PATTERN
+  EMPTY_CELL_PATTERN = TetrisShapes::EMPTY_CELL_PATTERN
   EMPTY_SPACE_VISUAL = ' ' * Cell::FILLED_CELL_VISUAL.size
+
+  CLOCKWISE_SIGN = 1
+  COUNTER_CLOCKWISE_SIGN = -1
 
   VISUAL_REGEX = /#{FILLED_CELL_PATTERN}|#{EMPTY_CELL_PATTERN}/
   VISUAL_HASH = {
@@ -249,21 +256,59 @@ class Shape
 
   DEFAULT_POSITION = { y: 1, x: 1 }
 
-  attr_reader :visual, :limbs, :position
+  attr_reader :visual, :limbs, :position, :center_limb, :rotation_center
 
-  def initialize(shape_string)
-    @visual = create_visual(shape_string)
-    @limbs = translate_shape_to_data(shape_string)
+  def initialize(shape_data)
+    limb_data = shape_data[TetrisShapes::LIMB_DATA]
+
+    @visual = create_visual(limb_data)
+    @limbs = translate_string_to_limbs(limb_data)
     @position = DEFAULT_POSITION.dup
+    @rotation_center = shape_data[TetrisShapes::ROTATE_CENTER]
+    @center_limb = find_center_limb
   end
 
   def filled_coords
     limbs.map { |limb| limb_absolute_coord(limb) }
   end
 
+  def rotate(rotation_direction = CLOCKWISE_SIGN)
+    return unless can_rotate?
+
+    limbs.each { |limb| rotate_limb!(limb, rotation_direction) }
+    fix_rotation_offset
+  end
+
+  def absolute_center_coord
+    return nil unless can_rotate?
+
+    limb_absolute_coord(center_limb)
+  end
+
   alias to_s visual
 
   private
+
+  def can_rotate?
+    !!rotation_center
+  end
+
+  def fix_rotation_offset
+    y_offset = center_limb[:y] - rotation_center[:y]
+    x_offset = center_limb[:x] - rotation_center[:x]
+
+    limbs.each do |limb|
+      limb[:y] -= y_offset
+      limb[:x] -= x_offset
+    end
+  end
+
+  def rotate_limb!(limb, rotation_direction = CLOCKWISE_SIGN)
+    previous_y = limb[:y]
+    previous_x = limb[:x]
+    limb[:y] = previous_x * -rotation_direction
+    limb[:x] = previous_y * rotation_direction
+  end
 
   def limb_absolute_coord(limb)
     {
@@ -276,7 +321,13 @@ class Shape
     shape_string.gsub(VISUAL_REGEX, VISUAL_HASH)
   end
 
-  def translate_shape_to_data(shape_string)
+  def find_center_limb
+    return nil unless can_rotate?
+
+    limbs.find { |limb| limb == rotation_center }
+  end
+
+  def translate_string_to_limbs(shape_string)
     data = []
     shape_string.split(/$/).each_with_index do |row, y_coord|
       clean_row = row.delete "\n"
@@ -315,10 +366,16 @@ class Player
   FALL_ACTION = :fall
   MOVE_LEFT_ACTION = :move_left
   MOVE_RIGHT_ACTION = :move_right
+  ROTATE_CLOCKWISE_ACTION = :rotate_clockwise
+  ROTATE_COUNTER_ACTION = :rotate_counter_clockwise
+  FREEFALL_ACTION = :freefall
 
   INPUTS_FOR_ACTIONS = {
     ['<', ','] => MOVE_LEFT_ACTION,
-    ['>', '.'] => MOVE_RIGHT_ACTION
+    ['>', '.'] => MOVE_RIGHT_ACTION,
+    ['a'] => ROTATE_CLOCKWISE_ACTION,
+    ['d'] => ROTATE_COUNTER_ACTION,
+    ['s'] => FREEFALL_ACTION
   }.freeze
 
   def prompt_tetromino_action
@@ -347,6 +404,9 @@ class Player
 end
 
 class TetrisGame
+  TITLE_PLATE = '] TETRIS ['
+  TITLE_DECOR = '-'
+
   TUTORIAL_ANSWER = 'tutorial'
   START_ANSWER = 'start'
   INVALID_CHOICE = 'Invalid answer!'
@@ -354,7 +414,7 @@ class TetrisGame
   ACTION_TIME_STEP = :step
   ACTION_DONT_STEP = :dont_step
 
-  TIME_AFTER_ACTION = 0.2
+  TIME_AFTER_ACTION = 0.1
   CELL_FALL_TIME = 0.05
   TETROMINO_DEATH_WAIT = 0.75
 
@@ -367,6 +427,7 @@ class TetrisGame
     TetrisText[:tutorial],
     Cell::EMPTY_CELL_VISUAL,
     Cell::FILLED_CELL_VISUAL,
+    Cell::CENTER_CELL_VISUAL,
     Cell::SOLID_CELL_VISUAL
   )
 
@@ -481,6 +542,10 @@ class TetrisGame
     when Player::FALL_ACTION then tetromino_fall_step
     when Player::MOVE_LEFT_ACTION then tetromino_move_left
     when Player::MOVE_RIGHT_ACTION then tetromino_move_right
+    when Player::ROTATE_CLOCKWISE_ACTION
+      try_rotate_tetromino Shape::CLOCKWISE_SIGN
+    when Player:: ROTATE_COUNTER_ACTION
+      try_rotate_tetromino Shape::COUNTER_CLOCKWISE_SIGN
     end
   end
 
@@ -501,20 +566,27 @@ class TetrisGame
     shape.position[:y] += 1
   end
 
+  def try_rotate_tetromino(rotation_sign = Shape::CLOCKWISE_SIGN)
+    shape.rotate(rotation_sign)
+    shape.rotate(-rotation_sign) if grid.shape_invalid_position?(shape)
+
+    ACTION_DONT_STEP
+  end
+
   def clear_full_rows
     lowest_empty_row = nil
     (1..grid.height).reverse_each do |row_number|
       if grid.row_full?(row_number)
-        clear_row(row_number)
+        clear_row!(row_number)
         lowest_empty_row ||= row_number
       elsif lowest_empty_row
-        row_fall_to(row_number, lowest_empty_row)
+        row_fall_to!(row_number, lowest_empty_row)
         lowest_empty_row -= 1
       end
     end
   end
 
-  def row_fall_to(from_row, to_row)
+  def row_fall_to!(from_row, to_row)
     row = grid[from_row]
     return if no_solid_cells_in_row?(row)
 
@@ -530,7 +602,7 @@ class TetrisGame
     end
   end
 
-  def clear_row(row_y)
+  def clear_row!(row_y)
     (1..grid.width).each do |x_pos|
       cell = grid[row_y][x_pos]
       next unless cell.solid?
@@ -546,9 +618,13 @@ class TetrisGame
   end
 
   def display_grid
+    grid_visual_size = grid.board_visual_width
+    centered_title = TITLE_PLATE.center(grid_visual_size, TITLE_DECOR)
+
     CLI.clear_screen
-    puts "---] TETRIS [---\n\n"
+    puts "#{centered_title}\n\n"
     puts grid
+    puts "\n#{TITLE_DECOR * grid_visual_size}"
     puts
   end
 

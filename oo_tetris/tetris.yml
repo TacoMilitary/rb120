@@ -13,13 +13,21 @@ tutorial: |
   A tetromino will solidify when it touches the bottom of the grid or another solid cell.
   When this occurs, a new tetromino will appear for you to control.
 
+  Tetrominos can be moved left or right, and rotated in 90 degree increments.
+
+  You will have time to think between actions. The tetromino only falls one cell
+  after an action is performed.
+
+  Rotating does not cause the tetromino to fall. This is a safe action.
+
   You lose when a tetromino has no more space to fall and touches the top of the grid.
 
   Connecting an entire row of solid cells will cause the row is disintegrate. The solid rows
-  above will collapse to fill the space. This is your key to survival.
+  above will collapse to fill the space. This is your key to success!
 
   An empty cell looks like this: %s
-  A tetromino filled cell looks like this: %s
+  A tetromino limb looks like this: %s
+  The center of a tetromino looks like this: %s
   A solid cell looks like this: %s
 
 
@@ -27,7 +35,10 @@ after_tutorial: |
   To start, please type (%s)!
 
 tetromino_control_prompt: |
-  To Move Left:  < (,)
-  To Move Right: > (.)
+  To Move Left:           < or ,
+  To Move Right:          > or .
+  To Rotate Clockwise:         d
+  To Rotate Counter-Clockwise: a
+  To Freefall:                 f
   
   Or input nothing to fall twice.
