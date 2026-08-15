@@ -145,6 +145,25 @@ class Grid
     end
   end
 
+  def row_full?(row_y_value)
+    row = coordinate[row_y_value]
+    row.values.all?(&:solid?)
+  end
+
+  def clear_row(row_y_value)
+    row = coordinate[row_y_value]
+    row.values.each(&:clear)
+  end
+
+  def deep_clear_row(row_y_value)
+    coordinate[row_y_value] = init_row_columns
+  end
+
+  def move_row_from_to(row_number, move_to)
+    coordinate[move_to] = coordinate[row_number]
+    coordinate[row_number] = init_row_columns
+  end
+
   def shape_move_x?(shape, direction_sign = 1)
     shape.filled_coords.none? do |adjacent_coord|
       adjacent_coord[:x] += 1 * direction_sign
@@ -176,6 +195,14 @@ class Grid
       coord[:x] <= 0 || coord[:x] > width
   end
 
+  def [](row_y_value)
+    coordinate[row_y_value]
+  end
+
+  def []=(row_y_value, new_row)
+    coordinate[row_y_value] = new_row
+  end
+
   private
 
   def find_cell(coord)
@@ -197,10 +224,13 @@ class Grid
   def init_coordinate
     coordinate = Hash.new
     (1..height).each do |y|
-      coordinate[y] = Hash.new
-      (1..width).each { |x| coordinate[y][x] = Cell.new }
+      coordinate[y] = init_row_columns
     end
     coordinate
+  end
+
+  def init_row_columns
+    (1..width).to_h { |x_pos| [x_pos, Cell.new] }
   end
 
   attr_reader :coordinate, :board_visual_width
@@ -324,7 +354,10 @@ class TetrisGame
   ACTION_TIME_STEP = :step
   ACTION_DONT_STEP = :dont_step
 
-  TIME_AFTER_ACTION = 0.3
+  TIME_AFTER_ACTION = 0.2
+  CELL_FALL_TIME = 0.05
+  TETROMINO_DEATH_WAIT = 0.75
+
   LEFT_DIRECTION = -1
   RIGHT_DIRECTION = 1
 
@@ -401,7 +434,8 @@ class TetrisGame
       self.shape = TetrisShapes.random_shape
       tetromino_control_loop unless tetromino_stop_control?
       tetromino_die
-      sleep(1)
+      sleep TETROMINO_DEATH_WAIT
+      clear_full_rows
     end
   end
 
@@ -465,6 +499,50 @@ class TetrisGame
 
   def tetromino_fall_step
     shape.position[:y] += 1
+  end
+
+  def clear_full_rows
+    lowest_empty_row = nil
+    (1..grid.height).reverse_each do |row_number|
+      if grid.row_full?(row_number)
+        clear_row(row_number)
+        lowest_empty_row ||= row_number
+      elsif lowest_empty_row
+        row_fall_to(row_number, lowest_empty_row)
+        lowest_empty_row -= 1
+      end
+    end
+  end
+
+  def row_fall_to(from_row, to_row)
+    row = grid[from_row]
+    return if no_solid_cells_in_row?(row)
+
+    empty_row = grid[to_row]
+
+    (1..grid.width).each do |x_pos|
+      next unless row[x_pos].solid?
+
+      empty_row[x_pos] = row[x_pos]
+      row[x_pos] = Cell.new
+      display_grid
+      sleep CELL_FALL_TIME
+    end
+  end
+
+  def clear_row(row_y)
+    (1..grid.width).each do |x_pos|
+      cell = grid[row_y][x_pos]
+      next unless cell.solid?
+
+      cell.clear
+      display_grid
+      sleep CELL_FALL_TIME
+    end
+  end
+
+  def no_solid_cells_in_row?(row)
+    row.values.none?(&:solid?)
   end
 
   def display_grid
