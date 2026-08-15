@@ -1,0 +1,24 @@
+FUTURE IMPROVEMENTS TO OBJECT ORIENTED RUBY TETRIS
+
+- Have tetrominos wrap around the board when pushed in a direction.
+  	(i.e) when a tetromino is pushed 1 cell off the grid to the right,
+  	the limb that is pushed off reappears on the left side.
+
+- Have actions be token based. When you run out of tokens, the tetromino falls (steps) down.
+  	This allows us to move the tetromino left or right twice, before it falls. This will
+  	make for much cleaner and satisfying gameplay.
+
+- Include a score system that is displayed when the board shows up.
+	Clearing rows give scores. Clearing multiple rows in one go exponentially
+	increases score gain.
+
+	Save these high scores in a newly created txt file, or an old one. Have this file record
+	the date of creation at the top. And with each new score added, add the date the score was recorded.
+
+- Ask the player if they'd like to replay a game of tetris each time the game ends.
+
+- Ask the player what mode they'd like to play.
+  - Mode determines the size of the grid.
+  - Select from a group a difficulties or ask them board size instead?
+  	(default, medium, hard)
+  	(small, normal, large, massive)
