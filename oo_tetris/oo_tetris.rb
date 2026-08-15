@@ -1,6 +1,6 @@
 require 'yaml'
 
-require_relative 'tetris_shapes.rb'
+require_relative 'tetris_shapes'
 
 # rubocop:disable Style/OneClassPerFile
 
@@ -416,6 +416,7 @@ class TetrisGame
 
   TIME_AFTER_ACTION = 0.1
   CELL_FALL_TIME = 0.05
+  TETROMINO_FREEFALL_WAIT = 0.025
   TETROMINO_DEATH_WAIT = 0.75
 
   LEFT_DIRECTION = -1
@@ -509,8 +510,6 @@ class TetrisGame
 
       break if tetromino_stop_control?
 
-      draw_shape_and_display_grid
-      sleep TIME_AFTER_ACTION
       tetromino_fall_step
 
       break if tetromino_stop_control?
@@ -526,6 +525,12 @@ class TetrisGame
     display_grid
   end
 
+  def tetromino_fall_step
+    draw_shape_and_display_grid
+    sleep TIME_AFTER_ACTION
+    tetromino_descend
+  end
+
   def player_action_loop
     loop do
       player_action = player.prompt_tetromino_action
@@ -539,12 +544,13 @@ class TetrisGame
 
   def perform_player_action(player_action)
     case player_action
-    when Player::FALL_ACTION then tetromino_fall_step
+    when Player::FALL_ACTION then tetromino_descend
     when Player::MOVE_LEFT_ACTION then tetromino_move_left
     when Player::MOVE_RIGHT_ACTION then tetromino_move_right
+    when Player::FREEFALL_ACTION then tetromino_freefall
     when Player::ROTATE_CLOCKWISE_ACTION
       try_rotate_tetromino Shape::CLOCKWISE_SIGN
-    when Player:: ROTATE_COUNTER_ACTION
+    when Player::ROTATE_COUNTER_ACTION
       try_rotate_tetromino Shape::COUNTER_CLOCKWISE_SIGN
     end
   end
@@ -562,7 +568,7 @@ class TetrisGame
     shape.position[:x] += 1 * direction_sign
   end
 
-  def tetromino_fall_step
+  def tetromino_descend
     shape.position[:y] += 1
   end
 
@@ -571,6 +577,14 @@ class TetrisGame
     shape.rotate(-rotation_sign) if grid.shape_invalid_position?(shape)
 
     ACTION_DONT_STEP
+  end
+
+  def tetromino_freefall
+    until tetromino_stop_control?
+      tetromino_descend
+      draw_shape_and_display_grid
+      sleep TETROMINO_FREEFALL_WAIT
+    end
   end
 
   def clear_full_rows

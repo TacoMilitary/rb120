@@ -12,17 +12,6 @@ module TetrisShapes
   # limb that the shape rotates around. if this is not provided
   # it is assumed that the shape cannot rotate
 
-#  SHAPES =
-#    [
-#      "NN\nNN", # Square tetromino
-#      " N\nNNN" # T-tetromino
-#      # "NNNN", # Straight tetromino
-#      # " NN\nNN", # Skrew tetromino green
-#      # "NN\n NN", # Skrew tetromino red
-#      # "N\nNNN", # L-tetromino blue
-#      # "  N\nNNN" # L-tetromino orange
-#    ].freeze
-
     SHAPES =
       [
         # Square tetromino
