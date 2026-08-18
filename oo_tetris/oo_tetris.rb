@@ -257,6 +257,7 @@ class TetrisGame
   def tetromino_move_x(direction_sign = RIGHT_DIRECTION)
     return ACTION_DONT_STEP unless grid.shape_move_x?(shape, direction_sign)
     shape.position[:x] += 1 * direction_sign
+    ACTION_KILL_TETROMINO if tetromino_stop_control?
   end
 
   def tetromino_descend
