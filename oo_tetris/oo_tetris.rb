@@ -235,7 +235,7 @@ class TetrisGame
 
   def perform_player_action(player_action)
     case player_action
-    when Player::FALL_ACTION then tetromino_descend
+    when Player::FALL_ACTION then ACTION_TIME_STEP
     when Player::MOVE_LEFT_ACTION then tetromino_move_left
     when Player::MOVE_RIGHT_ACTION then tetromino_move_right
     when Player::FREEFALL_ACTION then tetromino_freefall
