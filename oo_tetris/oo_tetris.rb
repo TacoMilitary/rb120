@@ -15,6 +15,8 @@ class Player
   ROTATE_COUNTER_ACTION = :rotate_counter_clockwise
   FREEFALL_ACTION = :freefall
 
+  PLAY_AGAIN_CHOICE = 'yes'
+
   INPUTS_FOR_ACTIONS = {
     ['<', ','] => MOVE_LEFT_ACTION,
     ['>', '.'] => MOVE_RIGHT_ACTION,
@@ -35,7 +37,17 @@ class Player
     end
   end
 
+  def play_again?
+    answer = CLI.prompt TetrisText[:play_again]
+    answered_yes?(answer)
+  end
+
   private
+
+  def answered_yes?(answer)
+    PLAY_AGAIN_CHOICE.start_with?(answer) ||
+      answer.start_with?(PLAY_AGAIN_CHOICE)
+  end
 
   def find_action(player_input)
     return FALL_ACTION if player_input.empty?
@@ -92,7 +104,7 @@ class TetrisGame
 
   def play
     intro_sequence
-    game_sequence
+    game_loop
   end
 
   private
@@ -105,6 +117,13 @@ class TetrisGame
     @shape = nil
     @player = Player.new
     @desired_spawn_x = grid.width / 2
+  end
+
+  def game_loop
+    loop do
+      game_sequence
+      break unless player.play_again?
+    end
   end
 
   def intro_sequence

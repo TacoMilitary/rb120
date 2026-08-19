@@ -53,6 +53,9 @@ tetromino_control_prompt: |
   To Move Right:          > or .
   To Rotate Clockwise:         d
   To Rotate Counter-Clockwise: a
-  To Freefall:                 f
+  To Freefall:                 s
   
-  Or input nothing to fall twice.
+  Or input nothing to fall once.
+
+play_again: |
+  Would you like to play another game? (yes or .)
